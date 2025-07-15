@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battleship - Custom Pattern Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <nav style="background: #1e3a8a; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 1.5rem; font-weight: bold;">🚢 Battleship Tool</div>
+            <div style="display: flex; gap: 20px;">
+                <a href="index.html" style="color: white; text-decoration: none; font-weight: bold;">🔧 Tạo Pattern</a>
+                <a href="hunting.html" style="color: white; text-decoration: none; font-weight: bold;">🎯 Chiến Thuật Săn</a>
+            </div>
+        </nav>
+
+        <h1>⚓ BATTLESHIP - CUSTOM PATTERN GENERATOR ⚓</h1>
+        
+        <div class="config-panel">
+            <div class="config-title">🎛️ CẤU HÌNH TÙY CHỈNH</div>
+            
+            <div class="grid-config">
+                <div class="input-group">
+                    <label>Chiều rộng lưới:</label>
+                    <input type="number" id="gridWidth" min="5" max="20" value="10">
+                </div>
+                <div class="input-group">
+                    <label>Chiều cao lưới:</label>
+                    <input type="number" id="gridHeight" min="5" max="20" value="10">
+                </div>
+                <div class="input-group">
+                    <label>Kích thước ô:</label>
+                    <select id="cellSize">
+                        <option value="25">Nhỏ (25px)</option>
+                        <option value="30" selected>Trung bình (30px)</option>
+                        <option value="35">Lớn (35px)</option>
+                        <option value="40">Rất lớn (40px)</option>
+                    </select>
+                </div>
+                <button class="btn btn-success" onclick="updateGridSize()">🔄 CẬP NHẬT LƯỚI</button>
+            </div>
+            
+            <div class="config-title">🚢 CẤU HÌNH TÀU</div>
+            <div class="ships-config" id="shipsConfig">
+                <!-- Ships will be dynamically added here -->
+            </div>
+            
+            <button class="add-ship-btn" onclick="addNewShip()">➕ THÊM TÀU MỚI</button>
+            <button class="btn btn-success" onclick="applyShipConfig()">✅ ÁP DỤNG CẤU HÌNH</button>
+        </div>
+        
+        <div class="boards-container">
+            <div class="board-section">
+                <div class="board-title">🎯 PATTERN: "CUSTOM LAYOUT"</div>
+                <div class="board" id="mainBoard"></div>
+                <div class="legend" id="legend"></div>
+                <div class="stats">
+                    <h4>📊 THỐNG KÊ</h4>
+                    <div id="statsContent"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="button-container">
+            <button class="btn" onclick="generateNewPattern()">🎲 TẠO PATTERN MỚI</button>
+            <button class="btn btn-secondary" onclick="showHuntingPattern()">🎯 HIỂN THỊ PATTERN SĂN</button>
+            <button class="btn btn-success" onclick="resetToDefault()">🔄 ĐẶT LẠI MẶC ĐỊNH</button>
+        </div>
+        
+        <div class="tips">
+            <div class="tip-title">💡 HƯỚNG DẪN SỬ DỤNG</div>
+            
+            <div class="tip-item">
+                <strong>🎛️ Tùy chỉnh lưới:</strong> Thay đổi kích thước lưới từ 5x5 đến 20x20, điều chỉnh kích thước ô cho phù hợp.
+            </div>
+            
+            <div class="tip-item">
+                <strong>🚢 Quản lý tàu:</strong> Thêm, xóa, đổi tên, thay đổi kích thước và màu sắc của từng loại tàu.
+            </div>
+            
+            <div class="tip-item">
+                <strong>🎯 Tạo pattern:</strong> Nhấn "TẠO PATTERN MỚI" để tạo bố trí ngẫu nhiên với cấu hình hiện tại.
+            </div>
+            
+            <div class="tip-item">
+                <strong>📊 Theo dõi thống kê:</strong> Xem tổng số ô bị chiếm và tỷ lệ phần trăm so với tổng lưới.
+            </div>
+            
+            <div class="tip-item">
+                <strong>🎮 Pattern săn:</strong> Xem cách đối thủ sẽ săn tàu với thuật toán checkerboard tối ưu.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default configuration
+        let gridConfig = {
+            width: 10,
+            height: 10,
+            cellSize: 30
+        };
+        
+        let shipsConfig = [
+            {name: 'Carrier', size: 5, color: '#8b0000', count: 1},
+            {name: 'Battleship', size: 4, color: '#006400', count: 1},
+            {name: 'Cruiser', size: 3, color: '#4b0082', count: 1},
+            {name: 'Submarine', size: 3, color: '#ff8c00', count: 1},
+            {name: 'Destroyer', size: 2, color: '#dc143c', count: 1}
+        ];
+        
+        let currentPattern = [];
+        let showingHuntPattern = false;
+        
+        function initializeShipsConfig() {
+            const container = document.getElementById('shipsConfig');
+            container.innerHTML = '';
+            
+            shipsConfig.forEach((ship, index) => {
+                const shipDiv = document.createElement('div');
+                shipDiv.className = 'ship-config';
+                shipDiv.innerHTML = `
+                    <h4>${ship.name}</h4>
+                    <div class="ship-controls">
+                        <input type="text" value="${ship.name}" onchange="updateShipName(${index}, this.value)" style="width: 80px;">
+                        <input type="number" value="${ship.size}" min="1" max="10" onchange="updateShipSize(${index}, this.value)" style="width: 50px;">
+                        <input type="color" value="${ship.color}" onchange="updateShipColor(${index}, this.value)" class="color-picker">
+                        <input type="number" value="${ship.count}" min="0" max="5" onchange="updateShipCount(${index}, this.value)" style="width: 40px;">
+                        <button class="remove-ship-btn" onclick="removeShip(${index})">❌</button>
+                    </div>
+                `;
+                container.appendChild(shipDiv);
+            });
+        }
+        
+        function updateShipName(index, name) {
+            shipsConfig[index].name = name;
+            initializeShipsConfig();
+        }
+        
+        function updateShipSize(index, size) {
+            shipsConfig[index].size = parseInt(size);
+        }
+        
+        function updateShipColor(index, color) {
+            shipsConfig[index].color = color;
+        }
+        
+        function updateShipCount(index, count) {
+            shipsConfig[index].count = parseInt(count);
+        }
+        
+        function removeShip(index) {
+            shipsConfig.splice(index, 1);
+            initializeShipsConfig();
+        }
+        
+        function addNewShip() {
+            const newShip = {
+                name: `Ship ${shipsConfig.length + 1}`,
+                size: 2,
+                color: '#' + Math.floor(Math.random()*16777215).toString(16),
+                count: 1
+            };
+            shipsConfig.push(newShip);
+            initializeShipsConfig();
+        }
+        
+        function updateGridSize() {
+            gridConfig.width = parseInt(document.getElementById('gridWidth').value);
+            gridConfig.height = parseInt(document.getElementById('gridHeight').value);
+            gridConfig.cellSize = parseInt(document.getElementById('cellSize').value);
+            
+            createBoard();
+            updateStats();
+        }
+        
+        function applyShipConfig() {
+            updateLegend();
+            generateNewPattern();
+        }
+        
+        function createBoard() {
+            const board = document.getElementById('mainBoard');
+            board.innerHTML = '';
+            
+            // Update grid template
+            board.style.gridTemplateColumns = `repeat(${gridConfig.width}, ${gridConfig.cellSize}px)`;
+            board.style.gridTemplateRows = `repeat(${gridConfig.height}, ${gridConfig.cellSize}px)`;
+            
+            // Create cells
+            for(let i = 0; i < gridConfig.width * gridConfig.height; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.style.width = gridConfig.cellSize + 'px';
+                cell.style.height = gridConfig.cellSize + 'px';
+                
+                const row = Math.floor(i / gridConfig.width);
+                const col = i % gridConfig.width;
+                cell.innerHTML = `<span class="coordinates">${String.fromCharCode(65 + row)}${col + 1}</span>`;
+                
+                board.appendChild(cell);
+            }
+            
+            // Place ships if pattern exists
+            if (currentPattern.length > 0 && !showingHuntPattern) {
+                placeShipsOnBoard();
+            }
+            
+            // Show hunting pattern if enabled
+            if (showingHuntPattern) {
+                showHuntingPatternOnBoard();
+            }
+        }
+        
+        function placeShipsOnBoard() {
+            const board = document.getElementById('mainBoard');
+            
+            currentPattern.forEach(shipData => {
+                shipData.cells.forEach(([row, col]) => {
+                    if (row < gridConfig.height && col < gridConfig.width) {
+                        const index = row * gridConfig.width + col;
+                        const cell = board.children[index];
+                        if (cell) {
+                            cell.classList.add('ship');
+                            cell.style.background = shipData.color;
+                            cell.textContent = '⚓';
+                        }
+                    }
+                });
+            });
+        }
+        
+        function showHuntingPatternOnBoard() {
+            const board = document.getElementById('mainBoard');
+            
+            for(let i = 0; i < gridConfig.width * gridConfig.height; i++) {
+                const row = Math.floor(i / gridConfig.width);
+                const col = i % gridConfig.width;
+                if ((row + col) % 2 === 0) {
+                    const cell = board.children[i];
+                    if (cell) {
+                        cell.style.background = '#ff6b6b';
+                        cell.textContent = '🎯';
+                    }
+                }
+            }
+        }
+        
+        function generateNewPattern() {
+            showingHuntPattern = false;
+            currentPattern = [];
+            const occupiedCells = new Set();
+            
+            // Generate ships based on configuration
+            shipsConfig.forEach(shipConfig => {
+                for (let i = 0; i < shipConfig.count; i++) {
+                    let placed = false;
+                    let attempts = 0;
+                    
+                    while (!placed && attempts < 1000) {
+                        const horizontal = Math.random() < 0.5;
+                        const row = Math.floor(Math.random() * gridConfig.height);
+                        const col = Math.floor(Math.random() * gridConfig.width);
+                        
+                        if (canPlaceShip(row, col, shipConfig.size, horizontal, occupiedCells)) {
+                            const cells = [];
+                            for (let j = 0; j < shipConfig.size; j++) {
+                                const r = horizontal ? row : row + j;
+                                const c = horizontal ? col + j : col;
+                                cells.push([r, c]);
+                                occupiedCells.add(`${r},${c}`);
+                            }
+                            currentPattern.push({
+                                name: shipConfig.name,
+                                size: shipConfig.size,
+                                color: shipConfig.color,
+                                cells: cells
+                            });
+                            placed = true;
+                        }
+                        attempts++;
+                    }
+                }
+            });
+            
+            createBoard();
+            updateStats();
+            updateLegend();
+        }
+        
+        function canPlaceShip(row, col, size, horizontal, occupiedCells) {
+            // Check if ship fits in grid
+            if (horizontal && col + size > gridConfig.width) return false;
+            if (!horizontal && row + size > gridConfig.height) return false;
+            
+            // Check if cells are occupied
+            for (let i = 0; i < size; i++) {
+                const r = horizontal ? row : row + i;
+                const c = horizontal ? col + i : col;
+                
+                if (occupiedCells.has(`${r},${c}`)) return false;
+                
+                // Check adjacent cells for spacing
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const nr = r + dr;
+                        const nc = c + dc;
+                        if (nr >= 0 && nr < gridConfig.height && nc >= 0 && nc < gridConfig.width) {
+                            if (occupiedCells.has(`${nr},${nc}`)) return false;
+                        }
+                    }
+                }
+            }
+            
+            return true;
+        }
+        
+        function showHuntingPattern() {
+            showingHuntPattern = !showingHuntPattern;
+            
+            if (showingHuntPattern) {
+                document.querySelector('.btn-secondary').textContent = '🚢 HIỂN THỊ TÀU';
+            } else {
+                document.querySelector('.btn-secondary').textContent = '🎯 HIỂN THỊ PATTERN SĂN';
+            }
+            
+            createBoard();
+        }
+        
+        function updateStats() {
+            const totalCells = gridConfig.width * gridConfig.height;
+            const occupiedCells = currentPattern.reduce((sum, ship) => sum + ship.cells.length, 0);
+            const coverage = ((occupiedCells / totalCells) * 100).toFixed(1);
+            
+            document.getElementById('statsContent').innerHTML = `
+                <div>Tổng ô: ${totalCells}</div>
+                <div>Ô có tàu: ${occupiedCells}</div>
+                <div>Tỷ lệ phủ: ${coverage}%</div>
+                <div>Số loại tàu: ${shipsConfig.length}</div>
+            `;
+        }
+        
+        function updateLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '';
+            
+            shipsConfig.forEach(ship => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                legendItem.innerHTML = `
+                    <span class="legend-color" style="background: ${ship.color}"></span>
+                    ${ship.name} (${ship.size} ô) x${ship.count}
+                `;
+                legend.appendChild(legendItem);
+            });
+        }
+        
+        function resetToDefault() {
+            shipsConfig = [
+                {name: 'Carrier', size: 5, color: '#8b0000', count: 1},
+                {name: 'Battleship', size: 4, color: '#006400', count: 1},
+                {name: 'Cruiser', size: 3, color: '#4b0082', count: 1},
+                {name: 'Submarine', size: 3, color: '#ff8c00', count: 1},
+                {name: 'Destroyer', size: 2, color: '#dc143c', count: 1}
+            ];
+            
+            gridConfig = {
+                width: 10,
+                height: 10,
+                cellSize: 30
+            };
+            
+            document.getElementById('gridWidth').value = 10;
+            document.getElementById('gridHeight').value = 10;
+            document.getElementById('cellSize').value = 30;
+            
+            initializeShipsConfig();
+            updateGridSize();
+            generateNewPattern();
+        }
+        
+        // Initialize
+        initializeShipsConfig();
+        createBoard();
+        generateNewPattern();
+    </script>
+</body>
+</html>
